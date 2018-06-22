@@ -1,14 +1,15 @@
 rm(list=ls())
-setwd("/Users/miqueltubaupires/Desktop/ML_project/")
+dir <- '/home/ramela/Documents/Master/MVA/MVA_project/'
+setwd(dir)
 source('usefulFunctions.R')
 
 library(xtable)
-  # PCA + Clusterring
+
 
   filenames <- c("MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "XOM", "GE", "GS", "HD", "INTC", "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UNH", "UTX", "VZ", "V", "WMT", "DIS")
-  dir <- '/Users/miqueltubaupires/Desktop/ML_project/' # change this whenever the user wants to run it locally 
+   # change this whenever the user wants to run it locally 
   dataset <- createCompaniesAsRowsDataset(filenames,dir)
-  dataset_centered = data.frame(scale(dataset,scale = FALSE))
+  dataset_scaled = data.frame(scale(dataset, center = FALSE))
   
   # outliers detection
   # outliers.position <- generate_outliers(dataset_centered, perc_outliers = 0.2, limit = 100)
@@ -17,7 +18,7 @@ library(xtable)
   # centering PCA
   library(FactoMineR)
   
-  pca.results <- PCA(dataset_centered,ncp = ncol(dataset_centered))
+  pca.results <- PCA(dataset_scaled,ncp = ncol(dataset_scaled))
   
   # deciding the number of principal components we want to take
   cum.sum.eig <- cumsum(pca.results$eig[,1])
