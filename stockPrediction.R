@@ -4,7 +4,7 @@ rm(list=ls())
 # Reading Data
 ###########################################
 filenames <- c("MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "XOM", "GE", "GS", "HD", "INTC", "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UNH", "UTX", "VZ", "V", "WMT", "DIS")
-setwd("/home/ramela/Documents/Master/MVA/ML_project")
+setwd("/home/ramela/Documents/Master/MVA/MVA_project")
 dataset  <- read.csv('all_stocks_7.csv',sep = ';',row.names = 1)
 source("usefulFunctions.R")
 
@@ -68,7 +68,7 @@ X.train.val.pca <- as.data.frame(predict(pca.results, X.train.val)$coord[,1:nd])
 X.train.pca <- as.data.frame(predict(pca.results, X.train)$coord[,1:nd])
 X.val.pca <- as.data.frame(predict(pca.results, X.val)$coord[,1:nd])
 
-dataset <- createCompaniesAsRowsDataset(filenames, "/home/ramela/Documents/Master/MVA/ML_project/")
+dataset <- createCompaniesAsRowsDataset(filenames, "/home/ramela/Documents/Master/MVA/MVA_project/")
 dataset_center <- scale(dataset)
 
 count.0.1 <- generate_outliers(dataset_center, perc_outliers = 0.1)
@@ -76,6 +76,76 @@ count.0.2 <- generate_outliers(dataset_center, perc_outliers = 0.2)
 count.0.3 <- generate_outliers(dataset_center, perc_outliers = 0.3)
 count.0.4 <- generate_outliers(dataset_center, perc_outliers = 0.4)
 count.0.5 <- generate_outliers(dataset_center, perc_outliers = 0.5)
+
+
+###########################################
+# DECISION TREE WITH THE WHOLE DATASET
+###########################################
+
+library(rpart)
+
+## Categorical decision tree
+model.dtcat.train <- list()
+model.test.prob_pred.dtcat.val <- list()
+for (i in 1:length(filenames)) {
+  print(paste0(i, " ", filenames[i]))
+  pos <- which(colnames(Y)==paste0('IncrementDayCategorical',filenames[i]))
+  curr_factor <- as.factor(Y.train[,pos])
+  model.dtcat.train[[i]] <- rpart(curr_factor ~ ., data = X.train.pca,method="class",control = rpart.control(cp=0.001))
+  model.test.prob_pred.dtcat.val[[i]] <- predict(model.dtcat.train[[i]], newdata=X.val.pca)
+  Y.val <- addColumn(Y.val, model.test.prob_pred.dtcat.val[[i]], paste0('PredTreeCatTrain',filenames[i]))
+}
+
+performance_stocks_dtcat <- list()
+for (i in 1:10) {
+  performance_stocks_dtcat[[i]] <- generateBenefitContinuousDay(Y.val, "PredTreeCatTrain", filenames, i)
+}
+
+amount_mean_dtcat <- which(performance_stocks_dtcat == max(unlist(performance_stocks_dtcat)))[1]
+
+model.dtcat.train.val <- list()
+model.test.prob_pred.dtcat.test <- list()
+for (i in 1:length(filenames)) {  
+  print(paste0(i, " ", filenames[i]))
+  pos <- which(colnames(Y)==paste0('IncrementDayCategorical',filenames[i]))
+  curr_factor <- as.factor(Y.train.val[,pos])
+  model.dtcat.train.val[[i]] <- rpart(curr_factor ~ ., data = X.train.val.pca,method="class",control = rpart.control(cp=0.001))
+  model.test.prob_pred.dtcat.test[[i]] <- predict(model.dtcat.train.val[[i]], newdata=X.test.pca)
+  Y.test <- addColumn(Y.test, model.test.prob_pred.dtcat.test[[i]], paste0('PredTreeCatTest',filenames[i]))
+}
+
+1 - generateBenefitContinuousDay(Y.test, "PredTreeCatTest", filenames, amount_mean_dtcat)
+
+## Continouous decision tree
+model.dtcon.train <- list()
+model.test.prob_pred.dtcon.val <- list()
+for (i in 1:length(filenames)) {
+  print(paste0(i, " ", filenames[i]))
+  pos <- which(colnames(Y)==paste0('IncrementDay',filenames[i]))
+  model.dtcon.train[[i]] <- rpart(Y.train[,pos] ~ ., data = X.train.pca,method="anova",control = rpart.control(cp=0.001))
+  model.test.prob_pred.dtcon.val[[i]] <- predict(model.dtcon.train[[i]], newdata=X.val.pca)
+  Y.val <- addColumn(Y.val, model.test.prob_pred.dtcon.val[[i]], paste0('PredTreeConTrain',filenames[i]))
+}
+
+performance_stocks_dtcon <- list()
+for (i in 1:10) {
+  performance_stocks_dtcon[[i]] <- generateBenefitContinuousDay(Y.val, "PredTreeConTrain", filenames, i)
+}
+
+amount_mean_dtcon <- which(performance_stocks_dtcon == max(unlist(performance_stocks_dtcon)))[1]
+
+model.dtcon.train.val <- list()
+model.test.prob_pred.dtcon.test <- list()
+for (i in 1:length(filenames)) {  
+  print(paste0(i, " ", filenames[i]))
+  pos <- which(colnames(Y)==paste0('IncrementDay',filenames[i]))
+  model.dtcon.train.val[[i]] <- rpart(Y.train.val[,pos] ~ ., data = X.train.val.pca,method="anova",control = rpart.control(cp=0.001))
+  model.test.prob_pred.dtcon.test[[i]] <- predict(model.dtcon.train.val[[i]], newdata=X.test.pca)
+  Y.test <- addColumn(Y.test, model.test.prob_pred.dtcon.test[[i]], paste0('PredTreeConTest',filenames[i]))
+}
+
+1 - generateBenefitContinuousDay(Y.test, "PredTreeConTest", filenames, amount_mean_dtcon)
+
 
 ###########################################
 # RANDOM FOREST WITH THE WHOLE DATASET
@@ -87,7 +157,7 @@ library(randomForest)
 model.rf.train <- list()
 model.test.prob_pred.rf.val <- list()
 for (i in 1:length(filenames)) {
-  ## Linear regression
+
   print(paste0(i, " ", filenames[i]))
   pos <- which(colnames(Y)==paste0('IncrementDayCategorical',filenames[i]))
   curr_factor <- as.factor(Y.train[,pos])
