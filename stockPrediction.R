@@ -4,10 +4,14 @@ rm(list=ls())
 # Reading Data
 ###########################################
 filenames <- c("MMM", "AXP", "AAPL", "BA", "CAT", "CVX", "CSCO", "KO", "XOM", "GE", "GS", "HD", "INTC", "IBM", "JNJ", "JPM", "MCD", "MRK", "MSFT", "NKE", "PFE", "PG", "TRV", "UNH", "UTX", "VZ", "V", "WMT", "DIS")
-setwd("/home/ramela/Documents/Master/MVA/MVA_project")
-dataset  <- read.csv('all_stocks_7.csv',sep = ';',row.names = 1)
+setwd("/Users/miqueltubaupires/Documents/Data Science/Github/MVA_project/")
+dataset  <- read.csv('/Users/miqueltubaupires/Documents/Data Science/Github/ML_project/all_stocks_7.csv',sep = ';',row.names = 1)
 source("usefulFunctions.R")
 
+# dataset[1,1:10]
+# to_delate <- seq(5,ncol(dataset),5)[1:203]
+# dataset <- dataset[,-to_delate]
+# colnames(dataset)
 ###########################################
 # Partitioning 
 ###########################################
@@ -51,16 +55,16 @@ dataset.test <- dataset[(n - ntest + 1):n,]
 ##########################################
 # PCA
 ##########################################
-
+Xc <- scale(X)
 library(FactoMineR)
-pca.results <- PCA(X,ncp = ncol(X))
+pca.results <- PCA(X,ncp = ncol(Xc))
 
 # deciding the number of principal components we want to take
 cum.sum.eig <- cumsum(pca.results$eig[,1])
 cum.sum.eig.norm <- cum.sum.eig / tail(cum.sum.eig, n=1)
 # we decide to retain as many eigenvalues as needed in order to have 80% of the total 
 # Inertia
-nd <- which(cum.sum.eig.norm>=0.95)[1] 
+nd <- which(cum.sum.eig.norm>=0.80)[1] 
 
 # redefining X in PCA space
 X.test.pca <- as.data.frame(predict(pca.results, X.test)$coord[,1:nd])
@@ -68,15 +72,36 @@ X.train.val.pca <- as.data.frame(predict(pca.results, X.train.val)$coord[,1:nd])
 X.train.pca <- as.data.frame(predict(pca.results, X.train)$coord[,1:nd])
 X.val.pca <- as.data.frame(predict(pca.results, X.val)$coord[,1:nd])
 
-dataset <- createCompaniesAsRowsDataset(filenames, "/home/ramela/Documents/Master/MVA/MVA_project/")
-dataset_center <- scale(dataset)
 
-count.0.1 <- generate_outliers(dataset_center, perc_outliers = 0.1)
-count.0.2 <- generate_outliers(dataset_center, perc_outliers = 0.2)
-count.0.3 <- generate_outliers(dataset_center, perc_outliers = 0.3)
-count.0.4 <- generate_outliers(dataset_center, perc_outliers = 0.4)
-count.0.5 <- generate_outliers(dataset_center, perc_outliers = 0.5)
 
+# count.0.1 <- generate_outliers(dataset_center, perc_outliers = 0.1)
+# count.0.2 <- generate_outliers(dataset_center, perc_outliers = 0.2)
+# count.0.3 <- generate_outliers(dataset_center, perc_outliers = 0.3)
+# count.0.4 <- generate_outliers(dataset_center, perc_outliers = 0.4)
+# count.0.5 <- generate_outliers(dataset_center, perc_outliers = 0.5)
+
+# analysis pca
+Psi <- pca.results$ind$coord[,1:nd]
+Phi <- pca.results$var$coord[,1:nd]
+
+# summary of the pca
+summary(pca.results)
+
+# analyzing the influence of each observation/company to the principal components
+company.prin.comp.df <- data.frame(pca.results$var$cos2)
+perc.pc <- round(pca.results$eig[,1]/tail(cum.sum.eig, n=1)*100,2)
+
+mid.var.pos <- which(cum.sum.eig.norm>=0.25)[1] # let's analyze the most significant principal components
+
+i <- 1
+i <- i+1
+colnames <- row.names(company.prin.comp.df)
+for(i in length(1:mid.var.pos)){
+  aux.table <- data.frame(cbind(company.prin.comp.df[,i],colnames))
+  colnames(aux.table) <- c(paste('Var. explained =',perc.pc[i]),'date')
+  aux.table <- data.frame(aux.table[with(aux.table, order(aux.table[,1],decreasing = T)), ])
+  xtable(aux.table[1:5,]) # printing the 5 most significant for each PC
+}
 
 ###########################################
 # DECISION TREE WITH THE WHOLE DATASET
